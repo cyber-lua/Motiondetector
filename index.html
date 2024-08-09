@@ -76,6 +76,11 @@
         input[type="range"]:hover {
             background: #fff;
         }
+
+        .flash {
+            background-color: red !important;
+            transition: background-color 0.2s ease;
+        }
     </style>
 </head>
 <body>
@@ -101,6 +106,7 @@
     const alarmSound = document.getElementById('alarm-sound');
 
     let previousFrame = null;
+    let motionDetected = false;
 
     function startVideo() {
         navigator.mediaDevices.getUserMedia({ video: true })
@@ -118,32 +124,52 @@
         canvas.height = video.videoHeight;
 
         context.drawImage(video, 0, 0, canvas.width, canvas.height);
-        const currentFrame = context.getImageData(0, 0, canvas.width, canvas.height).data;
+        const currentFrame = context.getImageData(0, 0, canvas.width, canvas.height);
+        const currentPixels = currentFrame.data;
 
         if (previousFrame) {
-            let motionDetected = false;
-            const sensitivity = sensitivityInput.value;
-            let motionCount = 0;
+            const previousPixels = previousFrame.data;
+            let motionPixelCount = 0;
+            const sensitivity = parseInt(sensitivityInput.value) * 10;
 
-            for (let i = 0; i < currentFrame.length; i += 4) {
-                const diffR = Math.abs(currentFrame[i] - previousFrame[i]);
-                const diffG = Math.abs(currentFrame[i + 1] - previousFrame[i + 1]);
-                const diffB = Math.abs(currentFrame[i + 2] - previousFrame[i + 2]);
+            for (let i = 0; i < currentPixels.length; i += 4) {
+                const diffR = Math.abs(currentPixels[i] - previousPixels[i]);
+                const diffG = Math.abs(currentPixels[i + 1] - previousPixels[i + 1]);
+                const diffB = Math.abs(currentPixels[i + 2] - previousPixels[i + 2]);
 
-                if (diffR + diffG + diffB > sensitivity * 10) {
-                    motionCount++;
+                const totalDifference = diffR + diffG + diffB;
+
+                if (totalDifference > sensitivity) {
+                    motionPixelCount++;
                 }
             }
 
-            if (motionCount > 1000) { // Arbitrary threshold for motion detection
-                motionDetected = true;
-                console.log('Motion detected!');
-                alarmSound.play();
+            // Improved motion detection threshold
+            const motionThreshold = (currentPixels.length / 4) * 0.05; // Adjusted for better sensitivity
+            if (motionPixelCount > motionThreshold) {
+                if (!motionDetected) {
+                    motionDetected = true;
+                    triggerAlarm();
+                }
+            } else {
+                motionDetected = false;
             }
         }
 
         previousFrame = currentFrame;
         requestAnimationFrame(detectMotion);
+    }
+
+    function triggerAlarm() {
+        alarmSound.play();
+        flashScreen();
+    }
+
+    function flashScreen() {
+        document.body.classList.add('flash');
+        setTimeout(() => {
+            document.body.classList.remove('flash');
+        }, 200); // Flash duration
     }
 
     sensitivityInput.addEventListener('input', () => {
