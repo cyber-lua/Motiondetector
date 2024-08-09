@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Motion Detection</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(to right, #0f2027, #203a43, #2c5364);
+            color: #fff;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            padding: 0;
+            text-align: center;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 20px;
+        }
+
+        video, canvas {
+            width: 90%;
+            max-width: 400px;
+            height: auto;
+            border: 2px solid #00d4ff;
+            border-radius: 10px;
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.3);
+        }
+
+        #controls {
+            margin-top: 20px;
+            width: 90%;
+            max-width: 400px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+        }
+
+        label {
+            font-size: 1.2rem;
+        }
+
+        input[type="range"] {
+            width: 70%;
+            -webkit-appearance: none;
+            appearance: none;
+            background: #00d4ff;
+            height: 8px;
+            border-radius: 5px;
+            outline: none;
+            cursor: pointer;
+            transition: background 0.3s ease;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            background: #fff;
+            border-radius: 50%;
+            box-shadow: 0 0 5px rgba(0, 0, 0, 0.3);
+            cursor: pointer;
+            transition: background 0.3s ease;
+        }
+
+        input[type="range"]:hover {
+            background: #fff;
+        }
+    </style>
+</head>
+<body>
+
+<h1>Motion Detection</h1>
+
+<video id="video" autoplay></video>
+<canvas id="canvas" style="display: none;"></canvas>
+
+<div id="controls">
+    <label for="sensitivity">Sensitivity:</label>
+    <input type="range" id="sensitivity" min="1" max="10" value="5">
+</div>
+
+<script>
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('canvas');
+    const context = canvas.getContext('2d');
+    const sensitivityInput = document.getElementById('sensitivity');
+
+    let previousFrame = null;
+
+    function startVideo() {
+        navigator.mediaDevices.getUserMedia({ video: true })
+            .then(stream => {
+                video.srcObject = stream;
+                video.play();
+            })
+            .catch(err => {
+                console.error('Error accessing the camera:', err);
+            });
+    }
+
+    function detectMotion() {
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+
+        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+        const currentFrame = context.getImageData(0, 0, canvas.width, canvas.height).data;
+
+        if (previousFrame) {
+            let motionDetected = false;
+            const sensitivity = sensitivityInput.value;
+            let motionCount = 0;
+
+            for (let i = 0; i < currentFrame.length; i += 4) {
+                const diffR = Math.abs(currentFrame[i] - previousFrame[i]);
+                const diffG = Math.abs(currentFrame[i + 1] - previousFrame[i + 1]);
+                const diffB = Math.abs(currentFrame[i + 2] - previousFrame[i + 2]);
+
+                if (diffR + diffG + diffB > sensitivity * 10) {
+                    motionCount++;
+                }
+            }
+
+            if (motionCount > 1000) { // Arbitrary threshold for motion detection
+                motionDetected = true;
+                console.log('Motion detected!');
+            }
+        }
+
+        previousFrame = currentFrame;
+        requestAnimationFrame(detectMotion);
+    }
+
+    sensitivityInput.addEventListener('input', () => {
+        console.log('Sensitivity set to:', sensitivityInput.value);
+    });
+
+    startVideo();
+    detectMotion();
+</script>
+
+</body>
+</html>
